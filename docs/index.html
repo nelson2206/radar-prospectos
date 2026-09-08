@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar de Prospectos · MBC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap">
+<style>
+  :root{
+    --navy:#003478; --navy-700:#00284F; --navy-100:#E7EEF9;
+    --accent:#FF0054; --accent-soft:#FFE7EF;
+    --bg:#E7E6DF; --card:#FFFFFF; --surface:#F7F7F3;
+    --ink:#141F2E; --muted:#616E80; --heading:#003478;
+    --line:#DFDED6; --line-soft:#EBEAE3; --field-line:#C6CEDA;
+    --ok:#0F6B43; --ok-bg:#E5F3EC; --warn:#8A5A00; --warn-bg:#FBF0DA;
+    --danger:#B3261E; --danger-bg:#FBEAE8;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    --display:Montserrat,system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --r:12px; --r-ctrl:9px;
+    --shadow:0 1px 2px rgba(0,35,80,.05), 0 8px 26px rgba(0,35,80,.07);
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:var(--display);color:var(--heading);margin:0;letter-spacing:-.01em}
+  p{margin:0}
+  a{color:var(--navy)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+
+  .topbar{background:var(--navy-700);position:sticky;top:0;z-index:30}
+  .topbar-in{display:flex;align-items:center;gap:13px;height:58px}
+  .mark{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
+  .topbar .ttl{font-family:var(--display);font-weight:600;font-size:15px;color:#fff}
+  .topbar .sub{color:rgba(255,255,255,.6);font-size:12.5px;margin-left:auto}
+  @media (max-width:640px){.topbar .sub{display:none}}
+
+  main{padding:30px 0 60px}
+
+  .intro{margin-bottom:20px}
+  .kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  h1{font-size:25px;font-weight:700;line-height:1.15}
+  .lede{max-width:62ch;color:var(--muted);font-size:14px;margin-top:8px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+  .card-body{padding:20px}
+
+  form{display:grid;gap:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:640px){.grid2{grid-template-columns:1fr}}
+  .field{display:grid;gap:5px}
+  label{font-size:12.5px;font-weight:600}
+  .opt{color:var(--muted);font-weight:400}
+  input{width:100%;padding:10px 12px;font:inherit;font-size:14.5px;color:var(--ink);
+    background:var(--surface);border:1px solid var(--field-line);border-radius:var(--r-ctrl)}
+  input::placeholder{color:var(--muted)}
+  .btn{appearance:none;font:inherit;font-weight:600;font-size:14px;cursor:pointer;border-radius:var(--r-ctrl);
+    padding:11px 20px;border:1px solid transparent;background:var(--navy);color:#fff}
+  .btn:hover{background:var(--navy-700)}
+  .btn:disabled{opacity:.6;cursor:default}
+  .btn-quiet{background:var(--surface);color:var(--ink);border-color:var(--field-line)}
+  .btn-quiet:hover{background:var(--card);border-color:var(--navy)}
+  .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .aviso{font-size:12.5px;color:var(--muted)}
+
+  #progreso{display:none;margin-top:18px}
+  #progreso.on{display:block}
+  .prog-card{padding:18px 20px;display:grid;gap:10px}
+  .prog-top{display:flex;align-items:center;gap:11px}
+  .spin{width:15px;height:15px;border:2px solid var(--field-line);border-top-color:var(--navy);border-radius:50%;animation:sp .7s linear infinite;flex:none}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .prog-txt{font-weight:600;font-size:14px}
+  .prog-sub{font-size:12.5px;color:var(--muted)}
+  .bar{height:4px;background:var(--line-soft);border-radius:100px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--navy);width:6%;transition:width .5s ease}
+
+  .error{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger);
+    border-radius:var(--r-ctrl);padding:12px 15px;font-size:13.5px;margin-top:16px}
+
+  #deck{display:none;margin-top:26px}
+  #deck.on{display:block}
+  .deck-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+  .slides{display:grid;gap:20px}
+
+  .slide{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);
+    padding:26px 28px;display:grid;gap:16px;break-inside:avoid}
+  .slide-top{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+    border-bottom:2px solid var(--navy);padding-bottom:9px;flex-wrap:wrap}
+  .slide-title{font-family:var(--display);font-size:18px;font-weight:700;color:var(--heading);max-width:62ch}
+  .slide-n{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+
+  .perfil{font-size:14px;color:var(--ink);max-width:80ch}
+
+  .cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:var(--r-ctrl);overflow:hidden}
+  .cifra{background:var(--surface);padding:11px 13px;display:grid;gap:2px}
+  .cifra .et{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-family:var(--mono)}
+  .cifra .vl{font-family:var(--display);font-size:19px;font-weight:700;color:var(--heading);font-variant-numeric:tabular-nums}
+  .cifra .fn{font-size:11px;color:var(--muted);line-height:1.35}
+
+  .lectura{background:var(--navy-100);border-left:3px solid var(--navy);padding:12px 15px;
+    border-radius:0 var(--r-ctrl) var(--r-ctrl) 0;font-size:14px}
+  .lectura b{color:var(--heading)}
+
+  .sec-h{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+
+  .dolores{display:grid;gap:10px}
+  .dolor{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;align-items:start}
+  .dolor .n{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);padding-top:2px}
+  .dolor .tt{font-weight:600;font-size:14px;margin-bottom:3px}
+  .dolor .ev{font-size:12.5px;color:var(--muted)}
+  .dolor .mt{display:flex;gap:7px;flex-wrap:wrap;margin-top:5px}
+  .pill{font-size:11px;padding:2px 9px;border-radius:100px;white-space:nowrap}
+  .p-imp{background:var(--accent-soft);color:var(--accent)}
+  .p-srv{background:var(--navy-100);color:var(--navy)}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media (max-width:780px){.cols{grid-template-columns:1fr}}
+
+  ul.q{margin:0;padding-left:18px;display:grid;gap:7px;font-size:13.5px}
+  ul.plain{margin:0;padding-left:16px;display:grid;gap:5px;font-size:13px;color:var(--muted)}
+
+  .hipo{font-size:14px;background:var(--surface);padding:14px 16px;border-radius:var(--r-ctrl);border:1px solid var(--line)}
+  .evitar{font-size:13px;background:var(--warn-bg);color:var(--warn);padding:11px 14px;border-radius:var(--r-ctrl)}
+  .paso{font-size:13.5px;border-top:1px solid var(--line);padding-top:12px}
+  .paso b{color:var(--heading)}
+
+  .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}
+  .tag{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:4px}
+  .t-alta{background:var(--ok-bg);color:var(--ok)}
+  .t-media{background:var(--warn-bg);color:var(--warn)}
+  .t-baja{background:var(--danger-bg);color:var(--danger)}
+
+  .fuentes{font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:11px;line-height:1.7}
+  .fuentes a{color:var(--muted);text-decoration:underline}
+
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:18px 0 0;font-size:12.5px;color:var(--muted)}
+
+  @media print{
+    .topbar,.deck-head,#formulario,#progreso,footer{display:none!important}
+    body{background:#fff}
+    .wrap{max-width:none;padding:0}
+    main{padding:0}
+    .slide{border:0;box-shadow:none;page-break-after:always;padding:0 0 20px}
+    #deck{margin:0}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap topbar-in">
+    <span class="mark"></span>
+    <span class="ttl">Radar de Prospectos</span>
+    <span class="sub">Minsait Business Consulting · Perú</span>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <div id="formulario">
+    <div class="intro">
+      <div class="kicker">Preparación de primeras reuniones</div>
+      <h1>Dos láminas para entrar bien a la reunión</h1>
+      <p class="lede">Investiga la empresa en fuentes públicas y devuelve lo que hace falta para conducir los primeros minutos: sus cifras con fuente, dónde le duele, quién es la persona y qué preguntar. Toma entre uno y tres minutos.</p>
+    </div>
+
+    <div class="card"><div class="card-body">
+      <form id="form">
+        <div class="field">
+          <label for="empresa">Empresa</label>
+          <input id="empresa" name="empresa" type="text" required autocomplete="off" placeholder="Razón social o nombre comercial">
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="persona">Nombre y apellido</label>
+            <input id="persona" name="persona" type="text" required autocomplete="off" placeholder="Con quién nos reunimos">
+          </div>
+          <div class="field">
+            <label for="cargo">Cargo</label>
+            <input id="cargo" name="cargo" type="text" required autocomplete="off" placeholder="Gerente de Finanzas">
+          </div>
+        </div>
+        <div class="field">
+          <label for="oferta">Oferta que queremos posicionar <span class="opt">· opcional</span></label>
+          <input id="oferta" name="oferta" type="text" autocomplete="off" placeholder="Si lo dejas vacío, se propone la que mejor encaje con los dolores">
+        </div>
+        <div class="field" id="campo-codigo" hidden>
+          <label for="codigo">Código de acceso</label>
+          <input id="codigo" name="codigo" type="password" autocomplete="off" placeholder="Solicítalo al equipo">
+        </div>
+        <div class="actions">
+          <button class="btn" type="submit" id="btn">Preparar la reunión</button>
+          <span class="aviso">Solo fuentes públicas. Verifica las cifras antes de usarlas con el cliente.</span>
+        </div>
+      </form>
+    </div></div>
+
+    <div class="card" id="config" hidden style="margin-top:16px">
+      <div class="card-body">
+        <h3 style="font-size:15px;margin-bottom:6px">Falta conectar el servicio</h3>
+        <p style="font-size:13.5px;color:var(--muted);margin-bottom:12px">Esta página no investiga por sí sola: pide los datos a un servicio propio que guarda la clave de la API. Pega aquí su dirección, terminada en <code>.vercel.app</code>. Queda guardada en este navegador.</p>
+        <div class="field">
+          <label for="api-base">Dirección del servicio</label>
+          <input id="api-base" type="url" autocomplete="off" placeholder="https://radar-prospectos.vercel.app">
+        </div>
+        <div class="actions" style="margin-top:12px">
+          <button class="btn" type="button" id="guardar-config">Conectar</button>
+          <span class="aviso">Las instrucciones para desplegarlo están en el repositorio.</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="progreso">
+      <div class="card prog-card">
+        <div class="prog-top">
+          <span class="spin"></span>
+          <span class="prog-txt" id="prog-txt">Encuadrando el prospecto</span>
+        </div>
+        <div class="bar"><i id="bar"></i></div>
+        <div class="prog-sub" id="prog-sub">Buscando en fuentes públicas</div>
+      </div>
+    </div>
+
+    <div id="error" class="error" hidden></div>
+  </div>
+
+  <div id="deck">
+    <div class="deck-head">
+      <div>
+        <div class="kicker">Preparado por MBC · Confidencial interno</div>
+        <h2 id="deck-titulo" style="font-size:20px"></h2>
+      </div>
+      <div class="actions">
+        <button class="btn btn-quiet" id="imprimir" type="button">Descargar PDF</button>
+        <button class="btn btn-quiet" id="otra" type="button">Otra empresa</button>
+      </div>
+    </div>
+    <div class="slides" id="slides"></div>
+  </div>
+
+</main>
+
+<footer class="wrap">
+  Radar de Prospectos · Minsait Business Consulting Perú. La investigación usa únicamente fuentes públicas y profesionales. Las cifras deben verificarse antes de presentarlas a un cliente.
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var form=document.getElementById("form");
+  var btn=document.getElementById("btn");
+  var prog=document.getElementById("progreso");
+  var progTxt=document.getElementById("prog-txt");
+  var progSub=document.getElementById("prog-sub");
+  var bar=document.getElementById("bar");
+  var errBox=document.getElementById("error");
+  var deck=document.getElementById("deck");
+  var slides=document.getElementById("slides");
+  var config=document.getElementById("config");
+
+  /* --------------------------------------------------------------------
+     Dónde vive el servicio que llama a la API.
+     Si publicas la página en GitHub Pages, escribe aquí la dirección de tu
+     despliegue en Vercel y nadie tendrá que configurarla a mano.
+     Ejemplo: var API_BASE = "https://radar-prospectos.vercel.app";
+  -------------------------------------------------------------------- */
+  var API_BASE = "";
+
+  function base(){
+    if(API_BASE) return API_BASE.replace(/\/+$/,"");
+    var guardada="";
+    try{ guardada=localStorage.getItem("radar-api-base")||""; }catch(e){}
+    if(guardada) return guardada.replace(/\/+$/,"");
+    // Si la página se sirve desde el mismo despliegue que la función, no hace falta nada.
+    if(location.protocol==="http:"||location.protocol==="https:"){
+      if(location.hostname.indexOf("github.io")===-1) return "";
+    }
+    return null; // hace falta configurarla
+  }
+
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){
+    return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c];});}
+
+  (function initConfig(){
+    if(base()===null){ config.hidden=false; }
+    var guardar=document.getElementById("guardar-config");
+    var campo=document.getElementById("api-base");
+    try{ campo.value=localStorage.getItem("radar-api-base")||""; }catch(e){}
+    guardar.addEventListener("click",function(){
+      var v=campo.value.trim().replace(/\/+$/,"");
+      if(!/^https?:\/\//.test(v)){
+        mostrarError("La dirección debe empezar por https://");
+        return;
+      }
+      try{ localStorage.setItem("radar-api-base",v); }catch(e){}
+      config.hidden=true;
+      errBox.hidden=true;
+    });
+  })();
+
+  var t0=0, timer=null;
+  function arrancarBarra(){
+    t0=Date.now();
+    timer=setInterval(function(){
+      var s=(Date.now()-t0)/1000;
+      var pct=6+86*(1-Math.exp(-s/95));
+      bar.style.width=pct.toFixed(1)+"%";
+      progSub.textContent="Llevamos "+Math.round(s)+" segundos. Suele tomar entre uno y tres minutos.";
+    },1000);
+  }
+  function pararBarra(){ if(timer){clearInterval(timer);timer=null;} }
+
+  form.addEventListener("submit",function(ev){
+    ev.preventDefault();
+    errBox.hidden=true;
+    deck.classList.remove("on");
+    slides.innerHTML="";
+
+    var datos={
+      empresa:document.getElementById("empresa").value.trim(),
+      persona:document.getElementById("persona").value.trim(),
+      cargo:document.getElementById("cargo").value.trim(),
+      oferta:document.getElementById("oferta").value.trim(),
+      codigo:document.getElementById("codigo").value.trim()
+    };
+    if(!datos.empresa||!datos.persona||!datos.cargo){
+      mostrarError("Completa la empresa, la persona y su cargo.");
+      return;
+    }
+
+    var raiz=base();
+    if(raiz===null){
+      config.hidden=false;
+      mostrarError("Falta conectar el servicio que hace la investigación. Pega su dirección abajo.");
+      config.scrollIntoView({behavior:"smooth",block:"center"});
+      return;
+    }
+
+    btn.disabled=true; btn.textContent="Investigando...";
+    prog.classList.add("on");
+    progTxt.textContent="Encuadrando el prospecto";
+    bar.style.width="6%";
+    arrancarBarra();
+
+    fetch(raiz+"/api/investigar",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(datos)
+    }).then(function(resp){
+      if(!resp.ok){
+        return resp.json().then(function(j){throw new Error(j.error||"Error del servidor.");},
+                                function(){throw new Error("Error del servidor ("+resp.status+").");});
+      }
+      if(!resp.body){throw new Error("El navegador no soporta la respuesta en vivo.");}
+      var lector=resp.body.getReader();
+      var dec=new TextDecoder();
+      var buffer="";
+
+      function leer(){
+        return lector.read().then(function(res){
+          if(res.done){return;}
+          buffer+=dec.decode(res.value,{stream:true});
+          var partes=buffer.split("\n\n");
+          buffer=partes.pop();
+          partes.forEach(function(bloque){
+            var linea=bloque.split("\n").filter(function(l){return l.indexOf("data:")===0;})[0];
+            if(!linea){return;}
+            var payload;
+            try{ payload=JSON.parse(linea.slice(5).trim()); }catch(e){ return; }
+            manejar(payload);
+          });
+          return leer();
+        });
+      }
+      return leer();
+    }).catch(function(err){
+      mostrarError(err.message||"No se pudo completar la investigación.");
+    }).then(function(){
+      pararBarra();
+      btn.disabled=false; btn.textContent="Preparar la reunión";
+      prog.classList.remove("on");
+    });
+  });
+
+  function manejar(p){
+    if(p.tipo==="progreso"){
+      progTxt.textContent=p.texto;
+    } else if(p.tipo==="error"){
+      mostrarError(p.mensaje);
+    } else if(p.tipo==="listo"){
+      bar.style.width="100%";
+      pintar(p.deck,p.uso);
+    }
+  }
+
+  function mostrarError(msg){
+    errBox.textContent=msg;
+    errBox.hidden=false;
+    if(/c[oó]digo de acceso/i.test(msg)){
+      document.getElementById("campo-codigo").hidden=false;
+    }
+  }
+
+  function pintar(d,uso){
+    document.getElementById("deck-titulo").textContent=d.empresa_nombre;
+
+    var cifras=(d.cifras||[]).map(function(c){
+      return '<div class="cifra"><span class="et">'+esc(c.etiqueta)+'</span>'+
+             '<span class="vl">'+esc(c.valor)+'</span>'+
+             '<span class="fn">'+esc(c.fuente)+'</span></div>';
+    }).join("");
+
+    var dolores=(d.dolores||[]).map(function(x,i){
+      return '<div class="dolor"><div class="n">0'+(i+1)+'</div><div>'+
+        '<div class="tt">'+esc(x.titulo)+'</div>'+
+        '<div class="ev">'+esc(x.evidencia)+'</div>'+
+        '<div class="mt"><span class="pill p-imp">'+esc(x.impacto)+'</span>'+
+        '<span class="pill p-srv">'+esc(x.servicio)+'</span></div>'+
+      '</div></div>';
+    }).join("");
+
+    var preguntas=(d.preguntas||[]).map(function(q){return "<li>"+esc(q)+"</li>";}).join("");
+    var rompe=(d.rompehielos||[]).map(function(r){return "<li>"+esc(r)+"</li>";}).join("");
+
+    var lagunas=(d.lagunas&&d.lagunas.length)
+      ? '<div class="sec-h" style="margin-top:4px">Qué falta verificar</div><ul class="plain">'+
+        d.lagunas.map(function(l){return "<li>"+esc(l)+"</li>";}).join("")+"</ul>"
+      : "";
+
+    var fuentes=(d.fuentes&&d.fuentes.length)
+      ? '<div class="fuentes"><b>Fuentes.</b> '+d.fuentes.map(function(f){
+          return f.url ? '<a href="'+esc(f.url)+'" target="_blank" rel="noopener">'+esc(f.titulo)+'</a>'
+                       : esc(f.titulo);
+        }).join(" · ")+'</div>'
+      : "";
+
+    var conf=(d.confianza||"media").toLowerCase();
+    var usoTxt = uso ? (uso.busquedas+" búsquedas") : "";
+
+    slides.innerHTML=
+      '<section class="slide">'+
+        '<div class="slide-top">'+
+          '<div class="slide-title">Quiénes son y dónde les duele</div>'+
+          '<div class="slide-n">Lámina 1 de 2</div>'+
+        '</div>'+
+        '<p class="perfil">'+esc(d.empresa_perfil)+'</p>'+
+        '<div class="cifras">'+cifras+'</div>'+
+        '<div class="lectura"><b>Lectura financiera.</b> '+esc(d.lectura_financiera)+'</div>'+
+        '<div><div class="sec-h">Dónde les duele</div><div class="dolores">'+dolores+'</div></div>'+
+      '</section>'+
+
+      '<section class="slide">'+
+        '<div class="slide-top">'+
+          '<div class="slide-title">Cómo entramos</div>'+
+          '<div class="slide-n">Lámina 2 de 2</div>'+
+        '</div>'+
+        '<div><div class="sec-h">Nuestra hipótesis de valor</div>'+
+          '<div class="hipo">'+esc(d.hipotesis)+'</div></div>'+
+        '<div class="cols">'+
+          '<div>'+
+            '<div class="sec-h">Las cinco preguntas</div>'+
+            '<ul class="q">'+preguntas+'</ul>'+
+          '</div>'+
+          '<div style="display:grid;gap:14px;align-content:start">'+
+            '<div>'+
+              '<div class="sec-h">Con quién nos reunimos</div>'+
+              '<p style="font-size:13.5px">'+esc(d.persona_perfil)+'</p>'+
+              '<div class="sec-h" style="margin-top:11px">Para romper el hielo</div>'+
+              '<ul class="plain">'+rompe+'</ul>'+
+            '</div>'+
+            '<div class="evitar"><b>No mencionar.</b> '+esc(d.tema_a_evitar)+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="paso"><b>Lo que pedimos al cerrar.</b> '+esc(d.siguiente_paso)+'</div>'+
+        lagunas+
+        '<div class="meta"><span class="tag t-'+esc(conf)+'">Confianza '+esc(conf)+'</span>'+
+          (usoTxt?'<span>'+esc(usoTxt)+'</span>':'')+
+          '<span>Verifica cada cifra antes de presentarla</span></div>'+
+        fuentes+
+      '</section>';
+
+    deck.classList.add("on");
+    deck.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  document.getElementById("imprimir").addEventListener("click",function(){window.print();});
+  document.getElementById("otra").addEventListener("click",function(){
+    deck.classList.remove("on");
+    slides.innerHTML="";
+    window.scrollTo({top:0,behavior:"smooth"});
+    document.getElementById("empresa").focus();
+  });
+
+})();
+</script>
+</body>
+</html>
