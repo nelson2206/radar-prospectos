@@ -69,8 +69,7 @@
   .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .aviso{font-size:12.5px;color:var(--muted)}
 
-  #progreso{display:none;margin-top:18px}
-  #progreso.on{display:block}
+  #progreso{margin-top:18px}
   .prog-card{padding:18px 20px;display:grid;gap:10px}
   .prog-top{display:flex;align-items:center;gap:11px}
   .spin{width:15px;height:15px;border:2px solid var(--field-line);border-top-color:var(--navy);border-radius:50%;animation:sp .7s linear infinite;flex:none}
@@ -83,8 +82,7 @@
   .error{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger);
     border-radius:var(--r-ctrl);padding:12px 15px;font-size:13.5px;margin-top:16px}
 
-  #deck{display:none;margin-top:26px}
-  #deck.on{display:block}
+  #deck{margin-top:26px}
   .deck-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
   .slides{display:grid;gap:20px}
 
@@ -116,7 +114,7 @@
   .dolor .tt{font-weight:600;font-size:14px;margin-bottom:3px}
   .dolor .ev{font-size:12.5px;color:var(--muted)}
   .dolor .mt{display:flex;gap:7px;flex-wrap:wrap;margin-top:5px}
-  .pill{font-size:11px;padding:2px 9px;border-radius:100px;white-space:nowrap}
+  .pill{font-size:11px;padding:2px 9px;border-radius:100px}
   .p-imp{background:var(--accent-soft);color:var(--accent)}
   .p-srv{background:var(--navy-100);color:var(--navy)}
 
@@ -168,7 +166,7 @@
     <div class="intro">
       <div class="kicker">Preparación de primeras reuniones</div>
       <h1>Dos láminas para entrar bien a la reunión</h1>
-      <p class="lede">Investiga la empresa en fuentes públicas y devuelve lo que hace falta para conducir los primeros minutos: sus cifras con fuente, dónde le duele, quién es la persona y qué preguntar. Toma entre uno y tres minutos.</p>
+      <p class="lede">Investiga la empresa en fuentes públicas y devuelve lo que hace falta para conducir los primeros minutos: sus cifras con fuente, dónde le duele, quién es la persona y qué preguntar. Toma entre dos y cuatro minutos.</p>
     </div>
 
     <div class="card"><div class="card-body">
@@ -191,9 +189,9 @@
           <label for="oferta">Oferta que queremos posicionar <span class="opt">· opcional</span></label>
           <input id="oferta" name="oferta" type="text" autocomplete="off" placeholder="Si lo dejas vacío, se propone la que mejor encaje con los dolores">
         </div>
-        <div class="field" id="campo-codigo" hidden>
-          <label for="codigo">Código de acceso</label>
-          <input id="codigo" name="codigo" type="password" autocomplete="off" placeholder="Solicítalo al equipo">
+        <div class="field">
+          <label for="codigo">Código del equipo</label>
+          <input id="codigo" name="codigo" type="password" required autocomplete="off" placeholder="Solicítalo a la coordinación del COE IA">
         </div>
         <div class="actions">
           <button class="btn" type="submit" id="btn">Preparar la reunión</button>
@@ -202,22 +200,7 @@
       </form>
     </div></div>
 
-    <div class="card" id="config" hidden style="margin-top:16px">
-      <div class="card-body">
-        <h3 style="font-size:15px;margin-bottom:6px">Falta conectar el servicio</h3>
-        <p style="font-size:13.5px;color:var(--muted);margin-bottom:12px">Esta página no investiga por sí sola: pide los datos a un servicio propio que guarda la clave de la API. Pega aquí su dirección, terminada en <code>.vercel.app</code>. Queda guardada en este navegador.</p>
-        <div class="field">
-          <label for="api-base">Dirección del servicio</label>
-          <input id="api-base" type="url" autocomplete="off" placeholder="https://radar-prospectos.vercel.app">
-        </div>
-        <div class="actions" style="margin-top:12px">
-          <button class="btn" type="button" id="guardar-config">Conectar</button>
-          <span class="aviso">Las instrucciones para desplegarlo están en el repositorio.</span>
-        </div>
-      </div>
-    </div>
-
-    <div id="progreso">
+    <div id="progreso" hidden>
       <div class="card prog-card">
         <div class="prog-top">
           <span class="spin"></span>
@@ -231,7 +214,7 @@
     <div id="error" class="error" hidden></div>
   </div>
 
-  <div id="deck">
+  <div id="deck" hidden>
     <div class="deck-head">
       <div>
         <div class="kicker">Preparado por MBC · Confidencial interno</div>
@@ -255,250 +238,383 @@
 (function(){
   "use strict";
 
-  var form=document.getElementById("form");
-  var btn=document.getElementById("btn");
-  var prog=document.getElementById("progreso");
-  var progTxt=document.getElementById("prog-txt");
-  var progSub=document.getElementById("prog-sub");
-  var bar=document.getElementById("bar");
-  var errBox=document.getElementById("error");
-  var deck=document.getElementById("deck");
-  var slides=document.getElementById("slides");
-  var config=document.getElementById("config");
-
   /* --------------------------------------------------------------------
-     Dónde vive el servicio que llama a la API.
-     Si publicas la página en GitHub Pages, escribe aquí la dirección de tu
-     despliegue en Vercel y nadie tendrá que configurarla a mano.
-     Ejemplo: var API_BASE = "https://radar-prospectos.vercel.app";
+     El navegador nunca ve la clave de la API. Las llamadas pasan por el
+     intermediario del COE IA en Cloudflare (el mismo de ProcessIQ), que
+     guarda la clave y exige el código del equipo.
   -------------------------------------------------------------------- */
-  var API_BASE = "";
+  var API = "https://api.mbc-latam.com/v1/messages";
+  var MODELO = "claude-opus-5";
+  var MAX_BUSQUEDAS = 12;
+  var MAX_CONTINUACIONES = 4;
 
-  function base(){
-    if(API_BASE) return API_BASE.replace(/\/+$/,"");
-    var guardada="";
-    try{ guardada=localStorage.getItem("radar-api-base")||""; }catch(e){}
-    if(guardada) return guardada.replace(/\/+$/,"");
-    // Si la página se sirve desde el mismo despliegue que la función, no hace falta nada.
-    if(location.protocol==="http:"||location.protocol==="https:"){
-      if(location.hostname.indexOf("github.io")===-1) return "";
-    }
-    return null; // hace falta configurarla
+  var SISTEMA_INVESTIGACION = [
+    "Eres senior manager de Minsait Business Consulting Perú preparando una primera reunión comercial.",
+    "",
+    "Tu trabajo no es investigar a la empresa: es dejar al consultor listo para conducir una reunión de 45 minutos en la que demuestre que entiende el negocio del cliente, haga preguntas que solo alguien preparado haría, y salga con una segunda reunión. Toda la investigación alimenta una sola decisión: con qué hipótesis de valor entramos y qué validamos allí.",
+    "",
+    "MÉTODO",
+    "Antes de buscar, clasifica al prospecto (tamaño, propiedad, regulación) para saber qué fuentes van a existir, y plantea tres hipótesis de dónde le duele. Después de las primeras búsquedas, reencuadra: si aparece un cambio de control reciente, un ejecutivo con menos de 18 meses en el cargo, una emisión de deuda o un plan estratégico recién anunciado, ese hallazgo pasa a ser el eje. Un cambio de control obliga a investigar también al comprador.",
+    "",
+    "Investiga, en este orden:",
+    "1. La empresa: hitos de 24 meses, grupo económico, primera línea, modelo de negocio y señales de compra.",
+    "2. Finanzas: ventas y su crecimiento, margen EBITDA, deuda sobre EBITDA, cobertura de intereses, capital de trabajo y liquidez. Cada cifra con fuente y año. Cierra con una frase sobre cómo está financieramente y qué le preocupa al director financiero.",
+    "3. Industria: dos o tres tendencias con impacto concreto sobre este prospecto, nunca genéricas.",
+    "4. Competidores: dos o tres directos y dónde el prospecto va por detrás.",
+    "5. Dolores: entre dos y tres, ordenados por impacto económico, cada uno con evidencia fechada y un impacto estimado con el supuesto visible.",
+    "6. La persona: solo información pública y profesional.",
+    "",
+    "DÓNDE BUSCAR, POR RENDIMIENTO",
+    "Empieza por el informe de clasificadora de riesgo (Moody's Local Perú en moodyslocal.com.pe, Apoyo & Asociados en aai.com.pe, Pacific Credit Rating): un solo documento trae varios años de ratios ya calculados, covenants y una sección de riesgos que alimenta los dolores. Después: memorias y hechos de importancia de la Superintendencia del Mercado de Valores, reportes trimestrales del emisor, transcripciones de conferencias de resultados (la mejor fuente sobre el ejecutivo, pública y profesional), reguladores sectoriales con datos por empresa, y prensa económica peruana para fechas y contexto.",
+    "Si la empresa no es peruana, usa el regulador de valores de su país. Si no cotiza, no habrá estados financieros: trabaja con reguladores sectoriales, comparables y prensa, y marca cada cifra como estimada.",
+    "",
+    "REGLAS INNEGOCIABLES",
+    "Ninguna cifra sin fuente y año. Nada de más de doce meses sin advertirlo. No construyas una tendencia con dos puntos de fuentes distintas. Nunca inventes cifras, nombres ni citas: si un dato no aparece, dilo y conviértelo en pregunta para la reunión. Distingue lo que es un hecho de lo que es una estimación tuya.",
+    "Sobre la persona: solo trayectoria, cargo, antigüedad, declaraciones públicas y qué decide. Nada de datos personales, familiares, patrimoniales ni de salud. Si aparece nombrada en una investigación o litigio abierto, no lo conviertas en dolor ni lo detalles: menciónalo solo como tema a evitar, en una línea neutra, sin repetir la acusación y dejando claro que no hay resolución firme.",
+    "Un dolor debe poder resolverse con consultoría y admitir una pregunta en la reunión. Si no cumple ambas cosas, no es un dolor.",
+    "",
+    "Cuando termines, entrega tus hallazgos organizados por los seis puntos del método. Sé conciso: lo que no cambia la conversación comercial, sobra."
+  ].join("\n");
+
+  var SISTEMA_DECK = [
+    "Conviertes hallazgos de investigación en una ficha de dos láminas para una primera reunión comercial de Minsait Business Consulting Perú.",
+    "",
+    "Reglas de escritura:",
+    "- Cada cifra conserva su fuente y su año. Si una cifra es estimada, dilo en el propio texto.",
+    "- Los dolores se escriben en el lenguaje del cliente, no en el de nuestro catálogo. \"Necesitan transformación digital\" no es un dolor.",
+    "- La hipótesis de valor debe ser específica de esta empresa. Si el párrafo serviría para cualquier otra, reescríbelo.",
+    "- Las preguntas son abiertas y demuestran preparación. Nada de preguntas cuya respuesta ya está en la ficha.",
+    "- El tema a evitar lleva, tras un punto, la salida concreta si el cliente lo saca.",
+    "- No inventes nada que no esté en los hallazgos. Si algo falta, decláralo en las lagunas.",
+    "- Español de Perú, directo, sin adjetivos de relleno."
+  ].join("\n");
+
+  // Salida estructurada en formato crudo: la API no admite minItems mayor a 1
+  // ni maxItems, así que los conteos van en las descripciones.
+  function objeto(props){
+    return { type:"object", properties:props, required:Object.keys(props), additionalProperties:false };
   }
+  var TXT = { type:"string" };
+  var ESQUEMA_DECK = objeto({
+    empresa_nombre: TXT,
+    empresa_perfil: { type:"string", description:"Qué venden, a quién y de qué tamaño. Tres líneas como máximo." },
+    cifras: { type:"array", description:"Exactamente cuatro cifras clave, o tres si no hay más con fuente.",
+      items: objeto({
+        etiqueta: { type:"string", description:"Qué mide, en dos o tres palabras. Ej: Ventas 2025" },
+        valor: { type:"string", description:"El número con su unidad. Ej: S/ 2,117 MM" },
+        fuente: { type:"string", description:"Quién lo publica y cuándo. Ej: Memoria anual 2025" }
+      }) },
+    lectura_financiera: { type:"string", description:"Una frase: cómo está financieramente y qué le preocupa al director financiero." },
+    dolores: { type:"array", description:"Entre dos y tres, ordenados por impacto económico.",
+      items: objeto({
+        titulo: { type:"string", description:"El dolor en una frase, en lenguaje del cliente." },
+        impacto: { type:"string", description:"Impacto económico estimado con su supuesto, o 'sin cuantificar'." },
+        evidencia: { type:"string", description:"El dato que lo prueba, con fuente y fecha." },
+        servicio: { type:"string", description:"Servicio de MBC que aplica." }
+      }) },
+    persona_perfil: { type:"string", description:"Trayectoria, cuánto lleva en el cargo y qué decide. Dos líneas." },
+    rompehielos: { type:"array", description:"Dos o tres temas para romper el hielo.", items:TXT },
+    tema_a_evitar: { type:"string", description:"Qué no mencionar y, tras un punto, cómo salir del tema si el cliente lo saca." },
+    hipotesis: { type:"string", description:"Un párrafo: qué puede lograr la empresa, atacando qué, con qué evidencia." },
+    preguntas: { type:"array", description:"Exactamente cinco preguntas abiertas que solo alguien preparado haría.", items:TXT },
+    siguiente_paso: { type:"string", description:"Qué pedimos concretamente al cerrar la reunión." },
+    confianza: { type:"string", enum:["alta","media","baja"] },
+    lagunas: { type:"array", description:"Hasta tres cosas que no se pudieron verificar.", items:TXT }
+  });
+
+  /* ------------------------------ UI ------------------------------ */
+  var $ = function(id){ return document.getElementById(id); };
+  var form=$("form"), btn=$("btn"), prog=$("progreso"), progTxt=$("prog-txt"),
+      progSub=$("prog-sub"), bar=$("bar"), errBox=$("error"), deck=$("deck"), slides=$("slides");
+
+  try{ $("codigo").value = localStorage.getItem("radar-codigo") || ""; }catch(e){}
 
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){
     return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c];});}
-
-  (function initConfig(){
-    if(base()===null){ config.hidden=false; }
-    var guardar=document.getElementById("guardar-config");
-    var campo=document.getElementById("api-base");
-    try{ campo.value=localStorage.getItem("radar-api-base")||""; }catch(e){}
-    guardar.addEventListener("click",function(){
-      var v=campo.value.trim().replace(/\/+$/,"");
-      if(!/^https?:\/\//.test(v)){
-        mostrarError("La dirección debe empezar por https://");
-        return;
-      }
-      try{ localStorage.setItem("radar-api-base",v); }catch(e){}
-      config.hidden=true;
-      errBox.hidden=true;
-    });
-  })();
 
   var t0=0, timer=null;
   function arrancarBarra(){
     t0=Date.now();
     timer=setInterval(function(){
       var s=(Date.now()-t0)/1000;
-      var pct=6+86*(1-Math.exp(-s/95));
-      bar.style.width=pct.toFixed(1)+"%";
-      progSub.textContent="Llevamos "+Math.round(s)+" segundos. Suele tomar entre uno y tres minutos.";
+      // Asintótica al 92 %: nunca finge haber terminado.
+      bar.style.width=(6+86*(1-Math.exp(-s/120))).toFixed(1)+"%";
+      progSub.textContent="Llevamos "+Math.round(s)+" segundos. Suele tomar entre dos y cuatro minutos.";
     },1000);
   }
   function pararBarra(){ if(timer){clearInterval(timer);timer=null;} }
 
+  function mostrarError(msg){ errBox.textContent=msg; errBox.hidden=false; }
+
+  /* --------------------------- llamadas --------------------------- */
+  function errorDeRespuesta(resp){
+    return resp.text().then(function(t){
+      var m=""; try{ var j=JSON.parse(t); m=(j.error&&j.error.message)||""; }catch(e){}
+      if(resp.status===401) return new Error("Código del equipo incorrecto. Revísalo y vuelve a intentar.");
+      if(resp.status===403) return new Error("Esta página no está autorizada en el intermediario. Avisa a la coordinación del COE IA.");
+      if(resp.status===429) return new Error("Se alcanzó el límite de uso de la API. Espera un par de minutos y reintenta.");
+      if(resp.status===529||resp.status===503) return new Error("El servicio de Anthropic está saturado. Reintenta en unos minutos.");
+      return new Error("Error "+resp.status+(m?": "+m:"")+".");
+    });
+  }
+
+  function llamar(cuerpo, codigo){
+    return fetch(API,{
+      method:"POST",
+      headers:{ "content-type":"application/json", "x-processiq-code":codigo },
+      body:JSON.stringify(cuerpo)
+    }).then(function(resp){
+      if(!resp.ok) return errorDeRespuesta(resp).then(function(e){ throw e; });
+      return resp;
+    }, function(){
+      throw new Error("No se pudo conectar con el servicio. Si estás en la red de Indra, puede estar bloqueado por el filtro corporativo: prueba desde otra red.");
+    });
+  }
+
+  // Lee la respuesta en vivo y reconstruye los bloques exactamente como los
+  // entrega la API (incluido el contenido cifrado de las búsquedas), porque
+  // si el turno se pausa hay que devolverlos intactos para continuar.
+  function leerStream(resp, alBloque){
+    var lector=resp.body.getReader(), dec=new TextDecoder(), buffer="";
+    var bloques=[], stop=null, usoBusquedas=0;
+
+    function procesar(ev){
+      if(ev.type==="content_block_start"){
+        var b=JSON.parse(JSON.stringify(ev.content_block));
+        if(b.type==="server_tool_use" || b.type==="tool_use") b._json="";
+        bloques[ev.index]=b;
+        if(alBloque) alBloque(b);
+      } else if(ev.type==="content_block_delta"){
+        var x=bloques[ev.index], d=ev.delta; if(!x) return;
+        if(d.type==="text_delta") x.text=(x.text||"")+d.text;
+        else if(d.type==="input_json_delta") x._json+=d.partial_json;
+        else if(d.type==="thinking_delta") x.thinking=(x.thinking||"")+d.thinking;
+        else if(d.type==="signature_delta") x.signature=d.signature;
+        else if(d.type==="citations_delta"){ (x.citations=x.citations||[]).push(d.citation); }
+      } else if(ev.type==="content_block_stop"){
+        var y=bloques[ev.index];
+        if(y && y._json!==undefined){
+          try{ y.input=y._json?JSON.parse(y._json):{}; }catch(e){ y.input={}; }
+          delete y._json;
+        }
+      } else if(ev.type==="message_delta"){
+        if(ev.delta && ev.delta.stop_reason) stop=ev.delta.stop_reason;
+        if(ev.usage && ev.usage.server_tool_use && ev.usage.server_tool_use.web_search_requests)
+          usoBusquedas=ev.usage.server_tool_use.web_search_requests;
+      } else if(ev.type==="error"){
+        throw new Error((ev.error&&ev.error.message)||"La API devolvió un error durante la investigación.");
+      }
+    }
+
+    function paso(){
+      return lector.read().then(function(r){
+        if(r.done){
+          return { bloques:bloques.filter(Boolean), stop:stop, busquedas:usoBusquedas };
+        }
+        buffer+=dec.decode(r.value,{stream:true});
+        var partes=buffer.split("\n\n"); buffer=partes.pop();
+        partes.forEach(function(p){
+          var linea=p.split("\n").filter(function(l){return l.indexOf("data:")===0;})[0];
+          if(!linea) return;
+          var ev; try{ ev=JSON.parse(linea.slice(5).trim()); }catch(e){ return; }
+          procesar(ev);
+        });
+        return paso();
+      });
+    }
+    return paso();
+  }
+
+  var FASES=[
+    "Buscando quiénes son y qué pasó en los últimos dos años",
+    "Revisando informes de clasificadora y estados financieros",
+    "Calculando deuda, márgenes y capital de trabajo",
+    "Mirando la industria y a sus competidores",
+    "Identificando dónde le duele",
+    "Buscando la trayectoria pública del ejecutivo",
+    "Contrastando fuentes"
+  ];
+
+  function investigar(datos){
+    var encargo=[
+      "Empresa: "+datos.empresa,
+      "Persona con la que nos reunimos: "+datos.persona+", "+datos.cargo,
+      datos.oferta ? "Oferta que queremos posicionar: "+datos.oferta
+                   : "Oferta a posicionar: la que mejor encaje con los dolores que encuentres.",
+      "",
+      "Investiga y devuelve tus hallazgos siguiendo el método."
+    ].join("\n");
+
+    var mensajes=[{ role:"user", content:encargo }];
+    var herramientas=0, busquedas=0, textos=[], citas=[];
+
+    function turno(n){
+      return llamar({
+        model:MODELO, max_tokens:32000, stream:true,
+        system:SISTEMA_INVESTIGACION,
+        output_config:{ effort:"high" },
+        fallbacks:"default",
+        tools:[{
+          type:"web_search_20260318", name:"web_search", max_uses:MAX_BUSQUEDAS,
+          response_inclusion:"excluded",
+          user_location:{ type:"approximate", country:"PE", timezone:"America/Lima" }
+        }],
+        messages:mensajes
+      }, datos.codigo).then(function(resp){
+        return leerStream(resp, function(b){
+          if(b.type==="server_tool_use"){
+            herramientas+=1;
+            progTxt.textContent=FASES[Math.min(Math.floor((herramientas-1)/2),FASES.length-1)];
+          }
+        });
+      }).then(function(r){
+        busquedas+=r.busquedas;
+        r.bloques.forEach(function(b){
+          if(b.type!=="text") return;
+          if(b.text && b.text.trim()) textos.push(b.text);
+          (b.citations||[]).forEach(function(c){ if(c && c.url) citas.push({ titulo:c.title||c.url, url:c.url }); });
+        });
+        if(r.stop==="refusal") throw new Error("La solicitud fue rechazada por los filtros de seguridad del modelo. Revisa los datos ingresados.");
+        if(r.stop==="pause_turn" && n<MAX_CONTINUACIONES){
+          // La API pausó un turno largo: se le devuelve tal cual para que siga.
+          // Los bloques de texto vacíos no se aceptan de vuelta.
+          var devolver=r.bloques.filter(function(b){ return !(b.type==="text" && !b.text); });
+          mensajes.push({ role:"assistant", content:devolver });
+          progTxt.textContent="Continuando la investigación";
+          return turno(n+1);
+        }
+        return { hallazgos:textos.join("\n\n").trim(), busquedas:busquedas, citas:unicas(citas) };
+      });
+    }
+    return turno(0);
+  }
+
+  function unicas(lista){
+    var visto={}, out=[];
+    lista.forEach(function(c){
+      if(!/^https?:\/\//i.test(c.url) || visto[c.url]) return;
+      visto[c.url]=1; out.push(c);
+    });
+    return out;
+  }
+
+  function armar(datos, inv){
+    progTxt.textContent="Armando las dos láminas";
+    var fuentes = inv.citas.length
+      ? "\n\nFUENTES CITADAS EN LA INVESTIGACIÓN:\n"+inv.citas.map(function(c){return "- "+c.titulo+" ("+c.url+")";}).join("\n")
+      : "";
+    return llamar({
+      model:MODELO, max_tokens:8000,
+      system:SISTEMA_DECK,
+      output_config:{ effort:"medium", format:{ type:"json_schema", schema:ESQUEMA_DECK } },
+      fallbacks:"default",
+      messages:[{ role:"user", content:
+        "Reunión con "+datos.persona+", "+datos.cargo+" de "+datos.empresa+"."+
+        (datos.oferta?" Queremos posicionar: "+datos.oferta+".":"")+
+        "\n\nHALLAZGOS DE LA INVESTIGACIÓN:\n\n"+inv.hallazgos+fuentes }]
+    }, datos.codigo).then(function(resp){ return resp.json(); }).then(function(msg){
+      if(msg.stop_reason==="refusal") throw new Error("El armado de las láminas fue rechazado por los filtros del modelo.");
+      var texto=(msg.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("");
+      try{ return JSON.parse(texto); }
+      catch(e){ throw new Error("No se pudo estructurar el resultado. Vuelve a intentarlo."); }
+    });
+  }
+
+  /* --------------------------- flujo --------------------------- */
   form.addEventListener("submit",function(ev){
     ev.preventDefault();
-    errBox.hidden=true;
-    deck.classList.remove("on");
-    slides.innerHTML="";
+    errBox.hidden=true; deck.hidden=true; slides.innerHTML="";
 
     var datos={
-      empresa:document.getElementById("empresa").value.trim(),
-      persona:document.getElementById("persona").value.trim(),
-      cargo:document.getElementById("cargo").value.trim(),
-      oferta:document.getElementById("oferta").value.trim(),
-      codigo:document.getElementById("codigo").value.trim()
+      empresa:$("empresa").value.trim(), persona:$("persona").value.trim(),
+      cargo:$("cargo").value.trim(), oferta:$("oferta").value.trim(), codigo:$("codigo").value.trim()
     };
-    if(!datos.empresa||!datos.persona||!datos.cargo){
-      mostrarError("Completa la empresa, la persona y su cargo.");
-      return;
-    }
-
-    var raiz=base();
-    if(raiz===null){
-      config.hidden=false;
-      mostrarError("Falta conectar el servicio que hace la investigación. Pega su dirección abajo.");
-      config.scrollIntoView({behavior:"smooth",block:"center"});
-      return;
-    }
+    if(!datos.empresa||!datos.persona||!datos.cargo){ mostrarError("Completa la empresa, la persona y su cargo."); return; }
+    if(!datos.codigo){ mostrarError("Falta el código del equipo."); $("codigo").focus(); return; }
+    try{ localStorage.setItem("radar-codigo", datos.codigo); }catch(e){}
 
     btn.disabled=true; btn.textContent="Investigando...";
-    prog.classList.add("on");
-    progTxt.textContent="Encuadrando el prospecto";
-    bar.style.width="6%";
+    prog.hidden=false; progTxt.textContent="Encuadrando el prospecto"; bar.style.width="6%";
     arrancarBarra();
 
-    fetch(raiz+"/api/investigar",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(datos)
-    }).then(function(resp){
-      if(!resp.ok){
-        return resp.json().then(function(j){throw new Error(j.error||"Error del servidor.");},
-                                function(){throw new Error("Error del servidor ("+resp.status+").");});
-      }
-      if(!resp.body){throw new Error("El navegador no soporta la respuesta en vivo.");}
-      var lector=resp.body.getReader();
-      var dec=new TextDecoder();
-      var buffer="";
-
-      function leer(){
-        return lector.read().then(function(res){
-          if(res.done){return;}
-          buffer+=dec.decode(res.value,{stream:true});
-          var partes=buffer.split("\n\n");
-          buffer=partes.pop();
-          partes.forEach(function(bloque){
-            var linea=bloque.split("\n").filter(function(l){return l.indexOf("data:")===0;})[0];
-            if(!linea){return;}
-            var payload;
-            try{ payload=JSON.parse(linea.slice(5).trim()); }catch(e){ return; }
-            manejar(payload);
-          });
-          return leer();
-        });
-      }
-      return leer();
+    var inv=null;
+    investigar(datos).then(function(r){
+      if(!r.hallazgos) throw new Error("La investigación no devolvió resultados legibles. Vuelve a intentarlo.");
+      inv=r;
+      return armar(datos, r);
+    }).then(function(d){
+      bar.style.width="100%";
+      pintar(d, inv);
     }).catch(function(err){
       mostrarError(err.message||"No se pudo completar la investigación.");
     }).then(function(){
       pararBarra();
       btn.disabled=false; btn.textContent="Preparar la reunión";
-      prog.classList.remove("on");
+      prog.hidden=true;
     });
   });
 
-  function manejar(p){
-    if(p.tipo==="progreso"){
-      progTxt.textContent=p.texto;
-    } else if(p.tipo==="error"){
-      mostrarError(p.mensaje);
-    } else if(p.tipo==="listo"){
-      bar.style.width="100%";
-      pintar(p.deck,p.uso);
-    }
-  }
+  function lista(arr, fn){ return (arr||[]).map(fn).join(""); }
 
-  function mostrarError(msg){
-    errBox.textContent=msg;
-    errBox.hidden=false;
-    if(/c[oó]digo de acceso/i.test(msg)){
-      document.getElementById("campo-codigo").hidden=false;
-    }
-  }
+  function pintar(d, inv){
+    $("deck-titulo").textContent=d.empresa_nombre;
 
-  function pintar(d,uso){
-    document.getElementById("deck-titulo").textContent=d.empresa_nombre;
-
-    var cifras=(d.cifras||[]).map(function(c){
+    var cifras=lista(d.cifras,function(c){
       return '<div class="cifra"><span class="et">'+esc(c.etiqueta)+'</span>'+
-             '<span class="vl">'+esc(c.valor)+'</span>'+
-             '<span class="fn">'+esc(c.fuente)+'</span></div>';
-    }).join("");
-
-    var dolores=(d.dolores||[]).map(function(x,i){
+             '<span class="vl">'+esc(c.valor)+'</span><span class="fn">'+esc(c.fuente)+'</span></div>';
+    });
+    var dolores=lista(d.dolores,function(x,i){
       return '<div class="dolor"><div class="n">0'+(i+1)+'</div><div>'+
-        '<div class="tt">'+esc(x.titulo)+'</div>'+
-        '<div class="ev">'+esc(x.evidencia)+'</div>'+
+        '<div class="tt">'+esc(x.titulo)+'</div><div class="ev">'+esc(x.evidencia)+'</div>'+
         '<div class="mt"><span class="pill p-imp">'+esc(x.impacto)+'</span>'+
-        '<span class="pill p-srv">'+esc(x.servicio)+'</span></div>'+
-      '</div></div>';
-    }).join("");
-
-    var preguntas=(d.preguntas||[]).map(function(q){return "<li>"+esc(q)+"</li>";}).join("");
-    var rompe=(d.rompehielos||[]).map(function(r){return "<li>"+esc(r)+"</li>";}).join("");
-
+        '<span class="pill p-srv">'+esc(x.servicio)+'</span></div></div></div>';
+    });
+    var preguntas=lista(d.preguntas,function(q){return "<li>"+esc(q)+"</li>";});
+    var rompe=lista(d.rompehielos,function(r){return "<li>"+esc(r)+"</li>";});
     var lagunas=(d.lagunas&&d.lagunas.length)
-      ? '<div class="sec-h" style="margin-top:4px">Qué falta verificar</div><ul class="plain">'+
-        d.lagunas.map(function(l){return "<li>"+esc(l)+"</li>";}).join("")+"</ul>"
-      : "";
-
-    var fuentes=(d.fuentes&&d.fuentes.length)
-      ? '<div class="fuentes"><b>Fuentes.</b> '+d.fuentes.map(function(f){
-          return f.url ? '<a href="'+esc(f.url)+'" target="_blank" rel="noopener">'+esc(f.titulo)+'</a>'
-                       : esc(f.titulo);
+      ? '<div><div class="sec-h">Qué falta verificar</div><ul class="plain">'+lista(d.lagunas,function(l){return "<li>"+esc(l)+"</li>";})+'</ul></div>' : "";
+    var fuentes=inv.citas.length
+      ? '<div class="fuentes"><b>Fuentes citadas.</b> '+inv.citas.slice(0,10).map(function(f){
+          return '<a href="'+esc(f.url)+'" target="_blank" rel="noopener">'+esc(f.titulo)+'</a>';
         }).join(" · ")+'</div>'
-      : "";
-
-    var conf=(d.confianza||"media").toLowerCase();
-    var usoTxt = uso ? (uso.busquedas+" búsquedas") : "";
+      : '<div class="fuentes">La investigación no devolvió citas verificables: trata todas las cifras como pendientes de confirmar.</div>';
+    var conf=["alta","media","baja"].indexOf(d.confianza)>=0?d.confianza:"media";
 
     slides.innerHTML=
       '<section class="slide">'+
-        '<div class="slide-top">'+
-          '<div class="slide-title">Quiénes son y dónde les duele</div>'+
-          '<div class="slide-n">Lámina 1 de 2</div>'+
-        '</div>'+
+        '<div class="slide-top"><div class="slide-title">Quiénes son y dónde les duele</div><div class="slide-n">Lámina 1 de 2</div></div>'+
         '<p class="perfil">'+esc(d.empresa_perfil)+'</p>'+
         '<div class="cifras">'+cifras+'</div>'+
         '<div class="lectura"><b>Lectura financiera.</b> '+esc(d.lectura_financiera)+'</div>'+
         '<div><div class="sec-h">Dónde les duele</div><div class="dolores">'+dolores+'</div></div>'+
       '</section>'+
-
       '<section class="slide">'+
-        '<div class="slide-top">'+
-          '<div class="slide-title">Cómo entramos</div>'+
-          '<div class="slide-n">Lámina 2 de 2</div>'+
-        '</div>'+
-        '<div><div class="sec-h">Nuestra hipótesis de valor</div>'+
-          '<div class="hipo">'+esc(d.hipotesis)+'</div></div>'+
+        '<div class="slide-top"><div class="slide-title">Cómo entramos</div><div class="slide-n">Lámina 2 de 2</div></div>'+
+        '<div><div class="sec-h">Nuestra hipótesis de valor</div><div class="hipo">'+esc(d.hipotesis)+'</div></div>'+
         '<div class="cols">'+
-          '<div>'+
-            '<div class="sec-h">Las cinco preguntas</div>'+
-            '<ul class="q">'+preguntas+'</ul>'+
-          '</div>'+
+          '<div><div class="sec-h">Las cinco preguntas</div><ul class="q">'+preguntas+'</ul></div>'+
           '<div style="display:grid;gap:14px;align-content:start">'+
-            '<div>'+
-              '<div class="sec-h">Con quién nos reunimos</div>'+
-              '<p style="font-size:13.5px">'+esc(d.persona_perfil)+'</p>'+
-              '<div class="sec-h" style="margin-top:11px">Para romper el hielo</div>'+
-              '<ul class="plain">'+rompe+'</ul>'+
-            '</div>'+
+            '<div><div class="sec-h">Con quién nos reunimos</div><p style="font-size:13.5px">'+esc(d.persona_perfil)+'</p>'+
+              '<div class="sec-h" style="margin-top:11px">Para romper el hielo</div><ul class="plain">'+rompe+'</ul></div>'+
             '<div class="evitar"><b>No mencionar.</b> '+esc(d.tema_a_evitar)+'</div>'+
           '</div>'+
         '</div>'+
         '<div class="paso"><b>Lo que pedimos al cerrar.</b> '+esc(d.siguiente_paso)+'</div>'+
         lagunas+
-        '<div class="meta"><span class="tag t-'+esc(conf)+'">Confianza '+esc(conf)+'</span>'+
-          (usoTxt?'<span>'+esc(usoTxt)+'</span>':'')+
-          '<span>Verifica cada cifra antes de presentarla</span></div>'+
+        '<div class="meta"><span class="tag t-'+conf+'">Confianza '+conf+'</span>'+
+          '<span>'+inv.busquedas+' búsquedas</span><span>Verifica cada cifra antes de presentarla</span></div>'+
         fuentes+
       '</section>';
 
-    deck.classList.add("on");
+    deck.hidden=false;
     deck.scrollIntoView({behavior:"smooth",block:"start"});
   }
 
-  document.getElementById("imprimir").addEventListener("click",function(){window.print();});
-  document.getElementById("otra").addEventListener("click",function(){
-    deck.classList.remove("on");
-    slides.innerHTML="";
-    window.scrollTo({top:0,behavior:"smooth"});
-    document.getElementById("empresa").focus();
+  $("imprimir").addEventListener("click",function(){ window.print(); });
+  $("otra").addEventListener("click",function(){
+    deck.hidden=true; slides.innerHTML="";
+    window.scrollTo({top:0,behavior:"smooth"}); $("empresa").focus();
   });
-
 })();
 </script>
 </body>
