@@ -1,0 +1,13 @@
+# Worker que sirve el Radar de Prospectos en prospectos.mbc-latam.com.
+# Toma la pagina de GitHub Pages en cada visita: no hay nada que publicar aqui
+# cuando cambia docs/index.html. Solo se redespliega si cambia proxy.js.
+# Desplegar (desde esta carpeta):  npx wrangler deploy
+name = "radar-prospectos-web"
+main = "proxy.js"
+compatibility_date = "2026-08-01"
+workers_dev = false
+preview_urls = false
+
+[[routes]]
+pattern = "prospectos.mbc-latam.com"
+custom_domain = true
