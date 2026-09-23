@@ -243,7 +243,13 @@
      intermediario del COE IA en Cloudflare (el mismo de ProcessIQ), que
      guarda la clave y exige el código del equipo.
   -------------------------------------------------------------------- */
-  var API = "https://api.mbc-latam.com/v1/messages";
+  // Dos direcciones del mismo Worker. El filtro corporativo de Indra bloquea
+  // *.mbc-latam.com, así que se prueba primero workers.dev y, si la red no
+  // deja pasar, la otra. Se recuerda la que funcionó en este navegador.
+  var BASES = [
+    "https://processiq-api.minsait-business-consulting-pe.workers.dev",
+    "https://api.mbc-latam.com"
+  ];
   var MODELO = "claude-opus-5";
   var MAX_BUSQUEDAS = 12;
   var MAX_CONTINUACIONES = 4;
@@ -358,17 +364,36 @@
     });
   }
 
+  function basePreferida(){
+    try{ var b=localStorage.getItem("radar-api"); if(BASES.indexOf(b)>=0) return b; }catch(e){}
+    return BASES[0];
+  }
+
+  // Solo una falla de red salta a la otra dirección. Un error del propio
+  // servicio (código incorrecto, límite de uso) no se arregla cambiando de
+  // dirección, así que se muestra tal cual.
   function llamar(cuerpo, codigo){
-    return fetch(API,{
-      method:"POST",
-      headers:{ "content-type":"application/json", "x-processiq-code":codigo },
-      body:JSON.stringify(cuerpo)
-    }).then(function(resp){
-      if(!resp.ok) return errorDeRespuesta(resp).then(function(e){ throw e; });
-      return resp;
-    }, function(){
-      throw new Error("No se pudo conectar con el servicio. Si estás en la red de Indra, puede estar bloqueado por el filtro corporativo: prueba desde otra red.");
-    });
+    var primera=basePreferida();
+    var orden=[primera].concat(BASES.filter(function(b){ return b!==primera; }));
+
+    function intentar(i){
+      return fetch(orden[i]+"/v1/messages",{
+        method:"POST",
+        headers:{ "content-type":"application/json", "x-processiq-code":codigo },
+        body:JSON.stringify(cuerpo)
+      }).then(function(resp){
+        // Un 403 que no viene en JSON no es del Worker: es el filtro de la red.
+        var ct=resp.headers.get("content-type")||"";
+        if(resp.status===403 && ct.indexOf("json")<0 && i+1<orden.length) return intentar(i+1);
+        try{ localStorage.setItem("radar-api", orden[i]); }catch(e){}
+        if(!resp.ok) return errorDeRespuesta(resp).then(function(e){ throw e; });
+        return resp;
+      }, function(){
+        if(i+1<orden.length) return intentar(i+1);
+        throw new Error("No se pudo conectar con el servicio desde esta red. Si estás en la red de Indra, el filtro corporativo está bloqueando las dos direcciones: prueba desde otra red o avisa a la coordinación del COE IA.");
+      });
+    }
+    return intentar(0);
   }
 
   // Lee la respuesta en vivo y reconstruye los bloques exactamente como los
