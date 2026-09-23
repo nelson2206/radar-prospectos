@@ -454,10 +454,11 @@
         system:SISTEMA_INVESTIGACION,
         output_config:{ effort:"high" },
         fallbacks:"default",
+        // Sin user_location: la API no admite el código de país PE. Las fuentes
+        // peruanas se dirigen desde las instrucciones, no desde la herramienta.
         tools:[{
           type:"web_search_20260318", name:"web_search", max_uses:MAX_BUSQUEDAS,
-          response_inclusion:"excluded",
-          user_location:{ type:"approximate", country:"PE", timezone:"America/Lima" }
+          response_inclusion:"excluded"
         }],
         messages:mensajes
       }, datos.codigo).then(function(resp){
