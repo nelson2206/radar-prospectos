@@ -250,7 +250,7 @@
     "https://processiq-api.minsait-business-consulting-pe.workers.dev",
     "https://api.mbc-latam.com"
   ];
-  var MODELO = "claude-opus-5";
+  var MODELO = "claude-opus-5-5";
   var MAX_BUSQUEDAS = 12;
   var MAX_CONTINUACIONES = 4;
 
@@ -530,7 +530,7 @@
       ? "\n\nFUENTES CITADAS EN LA INVESTIGACIÓN:\n"+inv.citas.map(function(c){return "- "+c.titulo+" ("+c.url+")";}).join("\n")
       : "";
     return llamar({
-      model:MODELO, max_tokens:8000,
+      model:MODELO, max_tokens:16000,
       system:SISTEMA_DECK,
       output_config:{ effort:"medium", format:{ type:"json_schema", schema:ESQUEMA_DECK } },
       fallbacks:"default",
